@@ -21,7 +21,7 @@ class Personality:
     :param salary: survival salary in dollars
     :param op_cost: opportunity cost salary in dollars
     """
-    def __init__(self, development, marketing, salary, op_cost):
+    def __init__(self, *, development=18, marketing=48, salary=4000, op_cost=8000):
         self.development = 1/development
         self.marketing = 1/marketing
         self.salary = salary
@@ -51,13 +51,15 @@ class Market:
     :param monthly: the monthly subscription cost
     :param ctrct_len: length of contract
     :param variance: the variance in length of contract as a fraction
+    :param acq: acquisition cost
     """
-    def __init__(self, events, flake, monthly, ctrct_len, variance):
+    def __init__(self, *, events=1000, flake=0.5, monthly=10, ctrct_len=24, variance=0.5, acq=10):
         self.events = events
         self.flake = flake
         self.monthly = monthly
         self.ctrct_len = ctrct_len
         self.variance = variance
+        self.acq = acq
 
     def sales_pool_this_month(self):
         return int(self.events * (1 - (random() * self.flake)))
@@ -92,7 +94,7 @@ class State:
     :param channel: an initial marketing channel as a fraction of potential market
     :param pmf: an initial product/market fit as a fraction
     """
-    def __init__(self, capital, channel, pmf):
+    def __init__(self, *, capital=150000, channel=0, pmf=0.5):
         self.age = 0
         self.initial = capital
         self.cash = capital
@@ -138,12 +140,11 @@ class Company:
     :param fixed_overhead: monthly fixed overhead
     :param cost_of_sale: as a fraction
     """
-    def __init__(self, state, people, market, fixed_overhead, cost_of_sale):
+    def __init__(self, state, people, market, fixed_overhead):
         self.state = state
         self.people = people
         self.market = market
         self.overhead = fixed_overhead
-        self.cost_of_sale = cost_of_sale
 
     def month(self, market_fit_emphasis):
         """Iterate through one months' business
@@ -153,7 +154,6 @@ class Company:
 
         # pay the people
         salaries = sum(p.personality.salary for p in self.people)
-        print(salaries)
         self.state.cash -= (salaries + self.overhead)
 
         # pay the tax man
@@ -186,10 +186,11 @@ class Company:
         sales_this_month = pool * self.state.development_effect() * self.state.channel
         for n in range(0, int(sales_this_month)):
             self.state.subscribers.add(self.market.generate_sale())
+        self.state.cash -= self.market.acq * sales_this_month
 
         # calculate revenue
         revenue = sum(s.revenue_this_month() for s in self.state.subscribers)
-        self.state.cash += revenue * (1 - self.cost_of_sale)
+        self.state.cash += revenue
 
         # scores on the doors
         returned = sum(p.returned for p in self.people)
@@ -197,7 +198,7 @@ class Company:
         result = Result()
         result.revenue = revenue
         result.sales = int(sales_this_month)
-        result.pipeline = self.state.pipeline() * (1 - self.cost_of_sale)
+        result.pipeline = self.state.pipeline()
         result.cash = self.state.cash
         result.salaries = salaries
         result.overall = ((self.state.cash + returned) - (self.state.initial + op_cost))
